@@ -4,256 +4,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة تحكم المدرس</title>
+    <title>لوحة تحكم المدرسة - منصة تعليمية آمنة</title>
     <link rel="stylesheet" href="style.css">
 </head>
 
-<body class="admin-theme">
-    <!-- Login Modal -->
-    <div id="loginOverlay" class="overlay">
-        <div class="modal glass">
-            <h2 style="margin-bottom: 1.5rem; text-align: center;">تسجيل دخول المدرس</h2>
-            <div class="form-group">
-                <label>اسم المستخدم</label>
-                <input type="text" id="adminUser" value="0">
-            </div>
-            <div class="form-group">
-                <label>كلمة المرور</label>
-                <input type="password" id="adminPass" value="0">
-            </div>
-            <button onclick="adminLogin()">دخول</button>
-            <p id="loginError" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.5rem; display: none;">بيانات دخول
-                خاطئة!</p>
-        </div>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">منصة المدرسة - لوحة الإدارة</div>
+            <a href="index.html" class="btn-secondary"
+                style="padding: 10px 20px; text-decoration: none; border-radius: 8px;">معاينة كطالب</a>
+        </header>
+
+        <main>
+            <section class="card">
+                <h2 style="margin-bottom: 20px;">إضافة درس جديد</h2>
+                <form id="lessonForm">
+                    <div class="form-group">
+                        <label>عنوان الدرس</label>
+                        <input type="text" id="lessonTitle" placeholder="مثال: فيزياء - الوحدة الأولى" required>
+                    </div>
+                    <div class="form-group">
+                        <label>رابط جوجل درايف (رابط المشاركة أو التضمين)</label>
+                        <input type="url" id="lessonLink" placeholder="https://drive.google.com/file/d/.../view"
+                            required>
+                        <small style="color: var(--text-muted); display: block; margin-top: 5px;">
+                            <strong>مهم جداً:</strong> تأكد من ضبط إعدادات المشاركة في جوجل درايف لتكون "Anyone with the
+                            link can view".
+                            سيتكفل النظام بتحويل الرابط تلقائياً إلى رابط صالح للتشغيل.
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label>كود الحصة (15 حرف ورقم)</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="lessonCode" readonly required>
+                            <button type="button" onclick="generateCode()" style="width: auto;">توليد كود</button>
+                        </div>
+                    </div>
+                    <button type="submit">إضافة الدرس للمنصة</button>
+                </form>
+            </section>
+
+            <section class="card">
+                <h2 style="margin-bottom: 20px;">الدروس الحالية</h2>
+                <div id="lessonList">
+                    <!-- Lessons will be listed here -->
+                </div>
+            </section>
+        </main>
     </div>
 
-    <!-- Dashboard Layout -->
-    <div id="adminContent" class="dashboard-wrapper" style="display: none;">
-        <!-- Mobile Menu Toggle -->
-        <button class="menu-toggle" onclick="toggleSidebar()">☰ القائمة</button>
-
-        <!-- Sidebar -->
-        <div id="adminSidebar" class="sidebar">
-
-            <div class="sidebar-logo">لوحة إدارة الدروس</div>
-            <div class="nav-item active" onclick="showSection('stats')">🏠 الإحصائيات</div>
-            <div class="nav-item" onclick="showSection('lessons')">📚 إدارة الدروس</div>
-            <div class="nav-item" onclick="showSection('codes')">🔑 أكواد الطلاب</div>
-            <div style="margin-top: auto;">
-                <a href="index.html" class="nav-item" style="background: rgba(255,255,255,0.05);">👁️ عرض المنصة</a>
-            </div>
-        </div>
-
-        <!-- Main Content -->
-        <div class="main-content">
-            <!-- Stats Section -->
-            <div id="statsSection">
-                <h1 style="margin-bottom: 2rem;">مرحباً بك، أيها المعلم</h1>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-title">إجمالي الفيديوهات</div>
-                        <div id="statVideos" class="stat-value">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-title">الأكواد المنتجة</div>
-                        <div id="statCodes" class="stat-value">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-title">أكواد مستخدمة</div>
-                        <div id="statUsedCodes" class="stat-value" style="color: #6366f1;">0</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Lessons Section -->
-            <div id="lessonsSection" style="display: none;">
-                <div class="glass" style="padding: 2rem; margin-bottom: 2rem;">
-                    <h2>إضافة درس جديد</h2>
-                    <div
-                        style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; margin-top: 1rem; align-items: end;">
-                        <div class="form-group" style="margin:0">
-                            <label>اسم الدرس</label>
-                            <input type="text" id="lessonTitle" placeholder="مثال: الدرس الأول">
-                        </div>
-                        <div class="form-group" style="margin:0">
-                            <label>رابط الفيديو</label>
-                            <input type="text" id="lessonUrl" placeholder="YouTube أو Drive">
-                        </div>
-                        <button onclick="handleAddVideo()" style="width: auto; padding: 0.8rem 2rem;">حفظ</button>
-                    </div>
-                </div>
-
-                <div class="glass" style="padding: 1rem;">
-                    <h3>الدروس الحالية</h3>
-                    <div id="lessonsList" style="margin-top: 1rem;"></div>
-                </div>
-            </div>
-
-            <!-- Codes Section -->
-            <div id="codesSection" style="display: none;">
-                <div class="glass" style="padding: 2rem; margin-bottom: 2rem;">
-                    <h2>توليد أكواد جديدة</h2>
-                    <div
-                        style="display: grid; grid-template-columns: 1fr auto; gap: 1rem; margin-top: 1rem; align-items: end;">
-                        <div class="form-group" style="margin:0">
-                            <label>اختر الدرس</label>
-                            <select id="codeVideoSelect"></select>
-                        </div>
-                        <button onclick="handleGenerateCode()" style="width: auto; padding: 0.8rem 2rem;">إنشاء كود (15
-                            حرف)</button>
-                    </div>
-                </div>
-
-                <div class="glass" style="padding: 1rem;">
-                    <h3>سجل الأكواد</h3>
-                    <div style="overflow-x: auto; margin-top: 1rem;">
-                        <table style="width: 100%; text-align: right;">
-                            <thead>
-                                <tr>
-                                    <th style="padding: 1rem;">الكود</th>
-                                    <th style="padding: 1rem;">الدرس</th>
-                                    <th style="padding: 1rem;">الحالة</th>
-                                    <th style="padding: 1rem;">الجهاز</th>
-                                    <th style="padding: 1rem;">الصلاحية</th>
-                                </tr>
-                            </thead>
-                            <tbody id="codesTableBody"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
+    <script src="security.js"></script>
     <script>
-        function adminLogin() {
-            const user = document.getElementById('adminUser').value;
-            const pass = document.getElementById('adminPass').value;
-            if (user === '0' && pass === '0') {
-                document.getElementById('loginOverlay').style.display = 'none';
-                document.getElementById('adminContent').style.display = 'flex';
-                refreshAdminData();
-            } else {
-                document.getElementById('loginError').style.display = 'block';
+        function generateCode() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let code = '';
+            for (let i = 0; i < 15; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
             }
+            document.getElementById('lessonCode').value = code;
         }
 
-        function showSection(sectionId) {
-            // Hide all
-            document.getElementById('statsSection').style.display = 'none';
-            document.getElementById('lessonsSection').style.display = 'none';
-            document.getElementById('codesSection').style.display = 'none';
+        const lessons = JSON.parse(localStorage.getItem('school_lessons') || '[]');
 
-            // Remove active from nav
-            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        function renderLessons() {
+            const list = document.getElementById('lessonList');
+            list.innerHTML = lessons.length ? '' : '<p style="color: var(--text-muted);">لا توجد دروس مضافة حالياً.</p>';
 
-            // Show target
-            document.getElementById(sectionId + 'Section').style.display = 'block';
-            event.currentTarget.classList.add('active');
-            refreshAdminData();
-        }
-
-        function refreshAdminData() {
-            const videos = getVideos();
-            const codes = getCodes();
-
-            // Update Stats
-            document.getElementById('statVideos').innerText = videos.length;
-            document.getElementById('statCodes').innerText = codes.length;
-            document.getElementById('statUsedCodes').innerText = codes.filter(c => c.status === 'used').length;
-
-            loadAdminLessons();
-            loadVideoSelect();
-            loadCodesTable();
-        }
-
-        function handleAddVideo() {
-            const title = document.getElementById('lessonTitle').value;
-            const url = document.getElementById('lessonUrl').value;
-            if (title && url) {
-                saveVideo(title, url);
-                document.getElementById('lessonTitle').value = '';
-                document.getElementById('lessonUrl').value = '';
-                refreshAdminData();
-            }
-        }
-
-        function loadAdminLessons() {
-            const list = document.getElementById('lessonsList');
-            const videos = getVideos();
-            list.innerHTML = videos.map(v => `
-                <div class="admin-item" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid #eee;">
-                    <span style="font-weight: 600;">${v.title}</span>
-                    <button class="delete-btn" onclick="removeVideo(${v.id})" style="background:#ef4444; width:auto; padding: 0.4rem 1rem; font-size: 0.8rem;">حذف</button>
-                </div>
-            `).join('');
-        }
-
-        function loadVideoSelect() {
-            const select = document.getElementById('codeVideoSelect');
-            const videos = getVideos();
-            select.innerHTML = videos.map(v => `<option value="${v.id}">${v.title}</option>`).join('');
-        }
-
-        function handleGenerateCode() {
-            const videoId = document.getElementById('codeVideoSelect').value;
-            if (!videoId) return alert('أضف درساً أولاً');
-            const codes = getCodes();
-            codes.push({
-                code: generateRandomCode(),
-                videoId: videoId,
-                status: 'unused',
-                firstDevice: null,
-                expiryDate: null
-            });
-            saveCodes(codes);
-            refreshAdminData();
-        }
-
-        function loadCodesTable() {
-            const body = document.getElementById('codesTableBody');
-            const codes = getCodes();
-            const videos = getVideos();
-            body.innerHTML = codes.slice().reverse().map(c => {
-                const video = videos.find(v => v.id == c.videoId);
-                const expiryText = c.expiryDate ? new Date(c.expiryDate).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' }) : '-';
-                return `
-                    <tr style="border-bottom: 1px solid #eee;">
-                        <td style="padding: 1rem;" data-label="الكود"><code>${c.code}</code></td>
-                        <td style="padding: 1rem;" data-label="الدرس">${video ? video.title : 'محذوف'}</td>
-                        <td style="padding: 1rem; color: ${c.status === 'used' ? '#ef4444' : '#10b981'}" data-label="الحالة">${c.status === 'used' ? 'مستخدم' : 'متاح'}</td>
-                        <td style="padding: 1rem; font-size: 0.7rem; color: #64748b;" data-label="الجهاز">${c.firstDevice || '-'}</td>
-                        <td style="padding: 1rem;" data-label="الصلاحية">${expiryText}</td>
-                    </tr>
+            lessons.forEach((lesson, index) => {
+                const item = document.createElement('div');
+                item.className = 'card';
+                item.style.marginBottom = '10px';
+                item.style.padding = '15px';
+                item.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>${lesson.title}</strong><br>
+                            <span style="font-size: 0.8rem; color: var(--primary);">كود الدخول: ${lesson.code}</span>
+                        </div>
+                        <button onclick="deleteLesson(${index})" style="width: auto; background: #ff4444; padding: 5px 15px;">حذف</button>
+                    </div>
                 `;
-            }).join('');
+                list.appendChild(item);
+            });
         }
 
-        function removeVideo(id) {
-            if (confirm('تأكيد الحذف؟')) {
-                deleteVideo(id);
-                refreshAdminData();
+        function formatDriveLink(url) {
+            // Convert sharing links to preview links
+            try {
+                let formatted = url.trim();
+                if (formatted.includes('drive.google.com')) {
+                    // Extract ID
+                    const match = formatted.match(/\/d\/([a-zA-Z0-9_-]+)/);
+                    if (match && match[1]) {
+                        return `https://drive.google.com/file/d/${match[1]}/preview`;
+                    }
+                }
+                return formatted;
+            } catch (e) {
+                return url;
             }
         }
 
-        function toggleSidebar() {
-            document.getElementById('adminSidebar').classList.toggle('active');
+        document.getElementById('lessonForm').onsubmit = (e) => {
+            e.preventDefault();
+            const title = document.getElementById('lessonTitle').value;
+            let link = document.getElementById('lessonLink').value;
+            const code = document.getElementById('lessonCode').value;
+
+            if (!code) {
+                alert("يرجى توليد كود الحصة أولاً.");
+                return;
+            }
+
+            link = formatDriveLink(link);
+
+            lessons.push({ id: Date.now(), title, link, code });
+            localStorage.setItem('school_lessons', JSON.stringify(lessons));
+
+            e.target.reset();
+            renderLessons();
+            alert("تم إضافة الدرس بنجاح! تم تحسين رابط جوجل درايف تلقائياً.");
+        };
+
+        function deleteLesson(index) {
+            if (confirm("هل أنت متأكد من حذف هذا الدرس؟")) {
+                lessons.splice(index, 1);
+                localStorage.setItem('school_lessons', JSON.stringify(lessons));
+                renderLessons();
+            }
         }
 
-        // Close sidebar when clicking a nav item on mobile
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', () => {
-                if (window.innerWidth <= 768) {
-                    document.getElementById('adminSidebar').classList.remove('active');
-                }
-            });
-        });
+        renderLessons();
     </script>
 </body>
-
-</html>
-
-</html>
 
 </html>
