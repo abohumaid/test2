@@ -71,7 +71,8 @@ label {
     font-size: 0.9rem;
 }
 
-input, select {
+input,
+select {
     width: 100%;
     padding: 12px 16px;
     background: var(--glass);
@@ -125,24 +126,74 @@ iframe {
 }
 
 /* Security Overlays */
-#watermark {
+.security-watermark {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
     pointer-events: none;
-    color: rgba(255, 255, 255, 0.2);
-    font-size: 1.5vw;
-    font-weight: bold;
+    color: rgba(255, 255, 255, 0.15);
+    font-size: 1.8vw;
+    font-weight: 800;
     white-space: nowrap;
     z-index: 1000;
     user-select: none;
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.4);
+    transition: all 0.5s ease-in-out;
+}
+
+.security-noise.aggressive {
+    opacity: 0.15;
+    animation: noise-move 0.05s infinite linear;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.security-noise {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.03;
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj48ZmlsdGVyIGlkPSJuIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iMC42NSIgbnVtT2N0YXZlcz0iMyIgc3RpdGNoVGlsZXM9InN0aXRjaCIvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbHRlcj0idXJsKCNuKSIvPjwvc3ZnPg==');
+    animation: noise-move 0.2s infinite steps(2);
+}
+
+@keyframes noise-move {
+    0% {
+        transform: translate(0, 0);
+    }
+
+    10% {
+        transform: translate(-1%, -1%);
+    }
+
+    20% {
+        transform: translate(1%, 1%);
+    }
+
+    100% {
+        transform: translate(0, 0);
+    }
 }
 
 .security-blur {
-    filter: blur(40px) brightness(0.2);
-    transition: filter 0.3s ease;
+    filter: blur(60px) brightness(0.1) saturate(0);
+    transition: filter 0.2s ease;
+}
+
+.security-alert {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 20000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
 }
 
 /* Grid Layout */
@@ -157,7 +208,7 @@ iframe {
     .container {
         padding: 15px;
     }
-    
+
     .logo {
         font-size: 1.2rem;
     }
