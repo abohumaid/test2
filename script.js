@@ -48,39 +48,95 @@ function generateRandomCode() {
 
 // Security Logic
 // Security Logic
+// Security Logic
 function applyProtection() {
-    // 1. Disable Key Shortcuts (F12, etc. - Optional, but keeping basic ones except F12)
+    // 1. Mandatory Environment Check
+    if (!checkBrowserAndGPU()) return;
+
+    // 2. Disable Key Shortcuts (except F12 for owner/inspect)
     document.addEventListener('keydown', e => {
         if (
             (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
-            (e.ctrlKey && e.key === 'u') || // Block View Source
-            (e.ctrlKey && e.key === 's') || // Block Save Page
-            (e.metaKey && e.shiftKey && e.key === '4') || // MacOS screenshot
+            (e.ctrlKey && e.key === 'u') ||
+            (e.ctrlKey && e.key === 's') ||
+            (e.metaKey && e.shiftKey && e.key === '4') ||
             e.key === 'PrintScreen'
         ) {
-            if (e.key !== 'F12') { // Let F12 work for Inspect
+            if (e.key !== 'F12') {
                 e.preventDefault();
                 return false;
             }
         }
     });
 
-    // 2. Blur on Focus Loss (Prevent Screen Capture by switching windows)
+    // 3. Focus/Visibility Protection
     window.addEventListener('blur', () => {
         document.body.classList.add('protection-blur');
         toggleBlackout(true);
     });
-
     window.addEventListener('focus', () => {
         document.body.classList.remove('protection-blur');
         toggleBlackout(false);
     });
 
-    // 3. Enhanced Recording Protection
+    // 4. Enhanced Recording Protection
     applyEnhancedProtection();
 
-    // 4. Console log warning
-    console.log("%cتحذير! محاولة تصوير الشاشة أو سرقة المحتوى ستعرض حسابك للحظر.", "color: red; font-size: 20px; font-weight: bold;");
+    console.log("%cSECURITY: Widevine DRM & Hardware Protection Active.", "color: green; font-size: 15px; font-weight: bold;");
+}
+
+function checkBrowserAndGPU() {
+    const ua = navigator.userAgent;
+    const isWindows = /Windows/i.test(ua);
+    const isChrome = /Chrome/i.test(ua) && !/Edg/i.test(ua) && !/OPR/i.test(ua);
+    const isEdge = /Edg/i.test(ua);
+
+    if (!isWindows || (!isChrome && !isEdge)) {
+        document.body.innerHTML = `
+            <div style="background:#0f172a; color:white; height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:2rem; font-family:sans-serif;">
+                <h1 style="color:#ef4444; margin-bottom:1rem;">⚠️ الوصول مرفوض!</h1>
+                <p style="font-size:1.2rem; max-width:600px;">هذا المحتوى محمي بنظام DRM. يرجى استخدام متصفح <b>Google Chrome</b> أو <b>Microsoft Edge</b> على نظام <b>Windows</b> فقط.</p>
+                <div style="margin-top:2rem; padding:1rem; border:1px solid rgba(255,255,255,0.1); border-radius:10px;">
+                    يرجى التأكد أيضاً من تفعيل ميزة <b>Hardware Acceleration</b> من إعدادات المتصفح لضمان عمل الحماية.
+                </div>
+            </div>
+        `;
+        return false;
+    }
+
+    // GPU Hardware Acceleration check
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (!gl) {
+        alert("يرجى تفعيل Hardware Acceleration في المتصفح لتشغيل الفيديو الأمن.");
+        return false;
+    }
+    return true;
+}
+
+async function initDRMPlayer(videoElement, manifestUri, licenseServerUri) {
+    if (!shaka.Player.isBrowserSupported()) {
+        console.error('Browser not supported for DRM');
+        return;
+    }
+
+    const player = new shaka.Player(videoElement);
+
+    // Configure DRM Licenses
+    player.configure({
+        drm: {
+            servers: {
+                'com.widevine.alpha': licenseServerUri
+            }
+        }
+    });
+
+    try {
+        await player.load(manifestUri);
+        console.log('The video has now been loaded!');
+    } catch (e) {
+        console.error('Error loading DRM content', e);
+    }
 }
 
 function applyEnhancedProtection() {
@@ -118,9 +174,26 @@ function applyEnhancedProtection() {
                 setTimeout(() => toggleBlackout(false), 800);
             }
         });
+
+        // Mobile Specific: Block Long-press (Context Menu) on the player area
+        playerArea.addEventListener('contextmenu', e => {
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            if (isMobile) {
+                e.preventDefault();
+                return false;
+            }
+        });
     }
 
-    // E. FPS Check for recording stress
+    // E. Block Picture-in-Picture (PiP)
+    document.addEventListener('enterpictureinpicture', (event) => {
+        if (document.exitPictureInPicture) {
+            document.exitPictureInPicture();
+        }
+        alert('⚠️ وضع النافذة العائمة (PiP) محظور لدواعي أمنية!');
+    }, true);
+
+    // F. FPS Check for recording stress
     let lastTime = performance.now();
     let frames = 0;
     const checkFPS = () => {
@@ -138,7 +211,7 @@ function applyEnhancedProtection() {
     };
     requestAnimationFrame(checkFPS);
 
-    // F. Block Copying
+    // G. Block Copying
     document.addEventListener('copy', e => e.preventDefault());
 }
 

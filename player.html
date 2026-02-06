@@ -6,6 +6,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>مشغل الدروس المحمي</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Shaka Player CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.debug.js"></script>
+    <style>
+        /* Mobile Lockdown CSS */
+        body {
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        #fullPlayer {
+            -webkit-touch-callout: none;
+        }
+    </style>
 </head>
 
 <body class="protection-ready">
@@ -20,12 +34,10 @@
         </header>
 
         <div class="player-container glass" id="fullPlayer"
-            style="padding: 1rem; position: relative; overflow: hidden;">
-            <div class="video-wrapper">
-                <iframe id="mainPlayer" frameborder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowfullscreen>
-                </iframe>
+            style="padding: 1rem; position: relative; overflow: hidden; background: black;">
+            <div class="video-wrapper" style="padding-bottom: 56.25%; position: relative;">
+                <video id="videoPlayer" style="width: 100%; height: 100%; position: absolute; top:0; left:0;" controls
+                    playsinline></video>
             </div>
 
             <!-- All Security Layers MUST be inside the Fullscreen Container -->
@@ -59,7 +71,7 @@
         // Apply security immediately
         applyProtection();
 
-        window.onload = function () {
+        window.onload = async function () {
             const rawUrl = sessionStorage.getItem('currentVideo');
             const expiry = sessionStorage.getItem('videoExpiry');
             const activeCode = sessionStorage.getItem('activeCode') || 'UNAUTHORIZED';
@@ -70,8 +82,18 @@
                 return;
             }
 
-            const embedUrl = getEmbedUrl(rawUrl);
-            document.getElementById('mainPlayer').src = embedUrl;
+            // Initialize Shaka Player (DRM)
+            const video = document.getElementById('videoPlayer');
+
+            // Check if URL is a manifest (.mpd)
+            if (rawUrl.includes('.mpd')) {
+                const licenseServer = 'YOUR_LICENSE_SERVER_URL'; // Should be configured in admin or env
+                await initDRMPlayer(video, rawUrl, licenseServer);
+            } else {
+                // Fallback for non-DRM content (MP4 or other)
+                video.src = rawUrl;
+            }
+
             sessionStorage.removeItem('currentVideo');
             startCountdown(parseInt(expiry));
 
