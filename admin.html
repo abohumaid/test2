@@ -29,8 +29,12 @@
 
     <!-- Dashboard Layout -->
     <div id="adminContent" class="dashboard-wrapper" style="display: none;">
+        <!-- Mobile Menu Toggle -->
+        <button class="menu-toggle" onclick="toggleSidebar()">☰ القائمة</button>
+
         <!-- Sidebar -->
-        <div class="sidebar">
+        <div id="adminSidebar" class="sidebar">
+
             <div class="sidebar-logo">لوحة إدارة الدروس</div>
             <div class="nav-item active" onclick="showSection('stats')">🏠 الإحصائيات</div>
             <div class="nav-item" onclick="showSection('lessons')">📚 إدارة الدروس</div>
@@ -216,11 +220,11 @@
                 const expiryText = c.expiryDate ? new Date(c.expiryDate).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' }) : '-';
                 return `
                     <tr style="border-bottom: 1px solid #eee;">
-                        <td style="padding: 1rem;"><code>${c.code}</code></td>
-                        <td style="padding: 1rem;">${video ? video.title : 'محذوف'}</td>
-                        <td style="padding: 1rem; color: ${c.status === 'used' ? '#ef4444' : '#10b981'}">${c.status === 'used' ? 'مستخدم' : 'متاح'}</td>
-                        <td style="padding: 1rem; font-size: 0.7rem; color: #64748b;">${c.firstDevice || '-'}</td>
-                        <td style="padding: 1rem;">${expiryText}</td>
+                        <td style="padding: 1rem;" data-label="الكود"><code>${c.code}</code></td>
+                        <td style="padding: 1rem;" data-label="الدرس">${video ? video.title : 'محذوف'}</td>
+                        <td style="padding: 1rem; color: ${c.status === 'used' ? '#ef4444' : '#10b981'}" data-label="الحالة">${c.status === 'used' ? 'مستخدم' : 'متاح'}</td>
+                        <td style="padding: 1rem; font-size: 0.7rem; color: #64748b;" data-label="الجهاز">${c.firstDevice || '-'}</td>
+                        <td style="padding: 1rem;" data-label="الصلاحية">${expiryText}</td>
                     </tr>
                 `;
             }).join('');
@@ -232,6 +236,19 @@
                 refreshAdminData();
             }
         }
+
+        function toggleSidebar() {
+            document.getElementById('adminSidebar').classList.toggle('active');
+        }
+
+        // Close sidebar when clicking a nav item on mobile
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    document.getElementById('adminSidebar').classList.remove('active');
+                }
+            });
+        });
     </script>
 </body>
 
