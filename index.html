@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة الدروس التعليمية - الطلاب</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">أكاديمية المعلم</div>
+            <a href="admin.html" style="color: var(--text-light); text-decoration: none; font-size: 0.9rem;">لوحة
+                التحكم</a>
+        </header>
+
+        <h1>الدروس المتاحة</h1>
+
+        <div id="videoGrid" class="video-grid">
+            <!-- Videos will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Access Code Modal -->
+    <div id="passwordModal" class="overlay" style="display: none;" onclick="closeModal()">
+        <div class="modal glass" onclick="event.stopPropagation()">
+            <button class="close-btn" onclick="closeModal()">×</button>
+            <h2 style="margin-bottom: 1.5rem; text-align: center;">كود الحصة</h2>
+            <div class="form-group">
+                <input type="text" id="videoPassword" placeholder="أدخل كود الحصة (15 حرف)">
+            </div>
+            <button onclick="checkAccessCode()">تفعيل الكود ومتابعة</button>
+            <p id="passError"
+                style="color: #ef4444; font-size: 0.8rem; margin-top: 1rem; display: none; text-align: center;"></p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Apply security immediately
+        applyProtection();
+
+        let selectedVideoId = '';
+        let selectedVideoUrl = '';
+
+        function closeModal() {
+            document.getElementById('passwordModal').style.display = 'none';
+        }
+
+        function loadVideos() {
+            const grid = document.getElementById('videoGrid');
+            const videos = getVideos();
+
+            if (videos.length === 0) {
+                grid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; opacity: 0.5;">لا توجد دروس مرفوعة بعد.</p>';
+                return;
+            }
+
+            grid.innerHTML = videos.map(v => `
+                <div class="video-card glass" onclick="requestAccess('${v.id}', '${v.url}')">
+                    <div class="video-thumbnail">📺</div>
+                    <div class="video-info">
+                        <div class="video-title">${v.title}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function requestAccess(id, url) {
+            selectedVideoId = id;
+            selectedVideoUrl = url;
+
+            // Check if already unlocked on this device
+            const unlocked = JSON.parse(localStorage.getItem('unlocked_lessons') || '{}');
+            const expiry = unlocked[id];
+
+            if (expiry && new Date(expiry) > new Date()) {
+                openPlayer(url, expiry);
+            } else {
+                document.getElementById('passwordModal').style.display = 'flex';
+                document.getElementById('passError').style.display = 'none';
+            }
+        }
+
+        function checkAccessCode() {
+            const codeInput = document.getElementById('videoPassword').value.trim();
+            const errorEl = document.getElementById('passError');
+            const deviceId = getDeviceID();
+            const codes = getCodes();
+
+            const codeIdx = codes.findIndex(c => c.code === codeInput && c.videoId == selectedVideoId);
+
+            if (codeIdx === -1) {
+                errorEl.innerText = 'الكود غير صحيح أو لا يخص هذا الدرس!';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            const codeData = codes[codeIdx];
+
+            if (codeData.status === 'used' && codeData.firstDevice !== deviceId) {
+                errorEl.innerText = 'هذا الكود تم استخدامه مسبقاً على جهاز آخر!';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            if (codeData.expiryDate && new Date(codeData.expiryDate) < new Date()) {
+                errorEl.innerText = 'انتهت صلاحية هذا الكود!';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            if (codeData.status === 'unused') {
+                codeData.status = 'used';
+                codeData.firstDevice = deviceId;
+                const expiry = new Date();
+                expiry.setDate(expiry.getDate() + 7);
+                codeData.expiryDate = expiry.getTime();
+                codes[codeIdx] = codeData;
+                saveCodes(codes);
+            }
+
+            const unlocked = JSON.parse(localStorage.getItem('unlocked_lessons') || '{}');
+            unlocked[selectedVideoId] = codeData.expiryDate;
+            localStorage.setItem('unlocked_lessons', JSON.stringify(unlocked));
+
+            openPlayer(selectedVideoUrl, codeData.expiryDate, codeData.code);
+        }
+
+        function openPlayer(url, expiry, code) {
+            sessionStorage.setItem('currentVideo', url);
+            sessionStorage.setItem('videoExpiry', expiry);
+            sessionStorage.setItem('activeCode', code);
+            window.location.href = 'player.html';
+        }
+
+        window.onload = loadVideos;
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مشغل الدروس المحمي</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="protection-ready">
+    <div class="container">
+        <header>
+            <div class="logo">مشغل الفيديو الأمن</div>
+            <div id="timerDisplay"
+                style="background: rgba(239, 68, 68, 0.2); padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.8rem; color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">
+                الوقت المتبقي: --:--
+            </div>
+            <a href="index.html" style="color: var(--text-light); text-decoration: none; font-size: 0.9rem;">إغلاق</a>
+        </header>
+
+        <div class="player-container glass" id="fullPlayer"
+            style="padding: 1rem; position: relative; overflow: hidden;">
+            <div class="video-wrapper">
+                <iframe id="mainPlayer" frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen>
+                </iframe>
+            </div>
+
+            <!-- All Security Layers MUST be inside the Fullscreen Container -->
+            <div id="blackout" class="blackout-overlay" style="position: absolute;">
+                <h2>⚠️ تم كشف محاولة تصوير أو تسجيل الشاشة!</h2>
+                <p>يرجى إغلاق أي برنامج تسجيل والعودة لصفحة الفيديو لضمان عدم حظر حسابك.</p>
+            </div>
+
+            <div class="sensor-disruption" style="position: absolute;"></div>
+            <div class="strobe-overlay" style="position: absolute;"></div>
+
+            <!-- Traceable Multi-Watermarks -->
+            <div id="watermark" style="position: absolute;"></div>
+            <div id="watermark2" class="watermark-alt" style="position: absolute;"></div>
+            <div id="watermark3" class="watermark-alt" style="position: absolute;"></div>
+
+            <button id="fsBtn" onclick="toggleFullScreen()"
+                style="margin-top: 1rem; width: auto; padding: 0.5rem 1.5rem; background: #475569;">
+                ملء الشاشة 🔲
+            </button>
+
+            <div id="protectionWarning"
+                style="margin-top: 1rem; text-align: center; color: #fbbf24; font-size: 0.8rem;">
+                ⚠️ نظام الحماية نشط. سيتم حجب المحتوى إذا اكتشفنا أي محاولة تسجيل.
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Apply security immediately
+        applyProtection();
+
+        window.onload = function () {
+            const rawUrl = sessionStorage.getItem('currentVideo');
+            const expiry = sessionStorage.getItem('videoExpiry');
+            const activeCode = sessionStorage.getItem('activeCode') || 'UNAUTHORIZED';
+
+            if (!rawUrl || !expiry || new Date(parseInt(expiry)) < new Date()) {
+                alert('انتهت صلاحية الجلسة أو الكود!');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const embedUrl = getEmbedUrl(rawUrl);
+            document.getElementById('mainPlayer').src = embedUrl;
+            sessionStorage.removeItem('currentVideo');
+            startCountdown(parseInt(expiry));
+
+            // Multi-Watermark Logic
+            const ids = ['watermark', 'watermark2', 'watermark3'];
+            const container = document.getElementById('fullPlayer');
+
+            ids.forEach((id, index) => {
+                const el = document.getElementById(id);
+                el.innerText = activeCode;
+
+                const move = () => {
+                    const rect = container.getBoundingClientRect();
+                    const x = Math.random() * (rect.width - 150);
+                    const y = Math.random() * (rect.height - 50);
+                    el.style.left = Math.max(0, x) + 'px';
+                    el.style.top = Math.max(0, y) + 'px';
+                    el.style.opacity = (Math.random() * 0.12 + 0.05).toString();
+                };
+
+                setInterval(move, 4000 + (index * 1500));
+                move();
+            });
+
+            // Performance / Recording software check
+            let lastTime = performance.now();
+            let frames = 0;
+            function check() {
+                const now = performance.now();
+                frames++;
+                if (now > lastTime + 1000) {
+                    const fps = Math.round((frames * 1000) / (now - lastTime));
+                    frames = 0;
+                    lastTime = now;
+                    // recording devices often cause a specific lag pattern or drop FPS
+                }
+                requestAnimationFrame(check);
+            }
+            requestAnimationFrame(check);
+        };
+
+        function startCountdown(expiryTime) {
+            const timerEl = document.getElementById('timerDisplay');
+            function update() {
+                const now = new Date().getTime();
+                const distance = expiryTime - now;
+                if (distance < 0) {
+                    timerEl.innerHTML = "انتهت الصلاحية";
+                    window.location.href = 'index.html';
+                    return;
+                }
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                timerEl.innerHTML = `متبقي: ${days} يوم و ${hours} ساعة و ${minutes} دقيقة`;
+            }
+            setInterval(update, 1000);
+            update();
+        }
+
+        function toggleFullScreen() {
+            const elem = document.getElementById("fullPlayer");
+            const btn = document.getElementById("fsBtn");
+            if (!document.fullscreenElement) {
+                if (elem.requestFullscreen) elem.requestFullscreen();
+                else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+                else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
+                elem.style.padding = "0";
+                btn.style.display = "none";
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+                elem.style.padding = "1rem";
+                btn.style.display = "block";
+            }
+        }
+
+        document.addEventListener('fullscreenchange', () => {
+            const elem = document.getElementById("fullPlayer");
+            const btn = document.getElementById("fsBtn");
+            if (!document.fullscreenElement) {
+                elem.style.padding = "1rem";
+                btn.style.display = "block";
+            }
+        });
+    </script>
+</body>
+
+</html>
