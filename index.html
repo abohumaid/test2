@@ -108,6 +108,10 @@
         function openPlayer(lesson, code) {
             const player = document.getElementById('videoPlayer');
             const title = document.getElementById('currentLessonTitle');
+            const wrapper = document.getElementById('videoWrapper');
+
+            // Reset Security State
+            wrapper.classList.remove('security-blur');
 
             title.textContent = lesson.title;
             player.src = formatDriveLink(lesson.link);
