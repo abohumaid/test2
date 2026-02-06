@@ -47,36 +47,25 @@ function generateRandomCode() {
 }
 
 // Security Logic
+// Security Logic
 function applyProtection() {
-    // 1. Disable Right Click
-    document.addEventListener('contextmenu', e => e.preventDefault());
-
-    // 2. Disable Key Shortcuts (F12, Ctrl+Shift+I, etc.)
+    // 1. Disable Key Shortcuts (F12, etc. - Optional, but keeping basic ones except F12)
     document.addEventListener('keydown', e => {
         if (
-            e.key === 'F12' ||
             (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
             (e.ctrlKey && e.key === 'u') || // Block View Source
             (e.ctrlKey && e.key === 's') || // Block Save Page
             (e.metaKey && e.shiftKey && e.key === '4') || // MacOS screenshot
             e.key === 'PrintScreen'
         ) {
-            e.preventDefault();
-            return false;
+            if (e.key !== 'F12') { // Let F12 work for Inspect
+                e.preventDefault();
+                return false;
+            }
         }
     });
 
-    // 3. DevTools Detection - Debugger Loop
-    setInterval(() => {
-        const startTime = performance.now();
-        debugger; // If DevTools is open, it will pause here
-        const endTime = performance.now();
-        if (endTime - startTime > 100) {
-            document.body.innerHTML = "<h1 style='color:white; text-align:center; padding-top:20%; font-family:sans-serif;'>⚠️ تم كشف محاولة اختراق! يرجى إغلاق أدوات المطور (Inspect Element) وإعادة تحميل الصفحة.</h1>";
-        }
-    }, 1000);
-
-    // 4. Blur on Focus Loss (Prevent Screen Capture by switching windows)
+    // 2. Blur on Focus Loss (Prevent Screen Capture by switching windows)
     window.addEventListener('blur', () => {
         document.body.classList.add('protection-blur');
         toggleBlackout(true);
@@ -87,10 +76,10 @@ function applyProtection() {
         toggleBlackout(false);
     });
 
-    // 5. Enhanced Recording Protection
+    // 3. Enhanced Recording Protection
     applyEnhancedProtection();
 
-    // 6. Console log warning
+    // 4. Console log warning
     console.log("%cتحذير! محاولة تصوير الشاشة أو سرقة المحتوى ستعرض حسابك للحظر.", "color: red; font-size: 20px; font-weight: bold;");
 }
 
@@ -100,19 +89,11 @@ function applyEnhancedProtection() {
         if (document.hidden) {
             toggleBlackout(true);
         } else {
-            // small delay to ensure UI is back
             setTimeout(() => toggleBlackout(false), 500);
         }
     });
 
     // B. Block MediaDevices Screen Capture API (Browser level)
-    if (navigator.getDisplayMedia) {
-        navigator.getDisplayMedia = () => {
-            alert('⚠️ محاولة تسجيل الشاشة محظورة!');
-            toggleBlackout(true);
-            return Promise.reject('Screen recording blocked');
-        };
-    }
     if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
         navigator.mediaDevices.getDisplayMedia = () => {
             alert('⚠️ محاولة تسجيل الشاشة محظورة!');
@@ -121,7 +102,25 @@ function applyEnhancedProtection() {
         };
     }
 
-    // C. Detect Device Performance Drop-offs (indicating recording)
+    // C. Detect Window Resize (indicating split screen or recording prep)
+    window.addEventListener('resize', () => {
+        toggleBlackout(true);
+        setTimeout(() => toggleBlackout(false), 1000);
+    });
+
+    // D. Detect Mouse Leave (Optional: Blackout if mouse leaves video area)
+    const playerArea = document.getElementById('fullPlayer');
+    if (playerArea) {
+        playerArea.addEventListener('mouseleave', () => {
+            // Only blackout if NOT using DevTools (approximated)
+            if (!document.fullscreenElement) {
+                toggleBlackout(true);
+                setTimeout(() => toggleBlackout(false), 800);
+            }
+        });
+    }
+
+    // E. FPS Check for recording stress
     let lastTime = performance.now();
     let frames = 0;
     const checkFPS = () => {
@@ -129,8 +128,8 @@ function applyEnhancedProtection() {
         frames++;
         if (now > lastTime + 1000) {
             const fps = Math.round((frames * 1000) / (now - lastTime));
-            if (fps < 20 && frames > 0) { // Extremely low FPS often caused by recorder stress
-                 // Log or trigger warning if sustained? For now just be quiet
+            if (fps < 15 && frames > 0) {
+                // Severe lag detection - possibly recording
             }
             frames = 0;
             lastTime = now;
@@ -139,7 +138,7 @@ function applyEnhancedProtection() {
     };
     requestAnimationFrame(checkFPS);
 
-    // D. Block Copying
+    // F. Block Copying
     document.addEventListener('copy', e => e.preventDefault());
 }
 
