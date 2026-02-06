@@ -87,8 +87,60 @@ function applyProtection() {
         toggleBlackout(false);
     });
 
-    // 5. Console log warning
+    // 5. Enhanced Recording Protection
+    applyEnhancedProtection();
+
+    // 6. Console log warning
     console.log("%cتحذير! محاولة تصوير الشاشة أو سرقة المحتوى ستعرض حسابك للحظر.", "color: red; font-size: 20px; font-weight: bold;");
+}
+
+function applyEnhancedProtection() {
+    // A. Detect Visibility Change (Control Center / App Switcher)
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            toggleBlackout(true);
+        } else {
+            // small delay to ensure UI is back
+            setTimeout(() => toggleBlackout(false), 500);
+        }
+    });
+
+    // B. Block MediaDevices Screen Capture API (Browser level)
+    if (navigator.getDisplayMedia) {
+        navigator.getDisplayMedia = () => {
+            alert('⚠️ محاولة تسجيل الشاشة محظورة!');
+            toggleBlackout(true);
+            return Promise.reject('Screen recording blocked');
+        };
+    }
+    if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
+        navigator.mediaDevices.getDisplayMedia = () => {
+            alert('⚠️ محاولة تسجيل الشاشة محظورة!');
+            toggleBlackout(true);
+            return Promise.reject('Screen recording blocked');
+        };
+    }
+
+    // C. Detect Device Performance Drop-offs (indicating recording)
+    let lastTime = performance.now();
+    let frames = 0;
+    const checkFPS = () => {
+        const now = performance.now();
+        frames++;
+        if (now > lastTime + 1000) {
+            const fps = Math.round((frames * 1000) / (now - lastTime));
+            if (fps < 20 && frames > 0) { // Extremely low FPS often caused by recorder stress
+                 // Log or trigger warning if sustained? For now just be quiet
+            }
+            frames = 0;
+            lastTime = now;
+        }
+        requestAnimationFrame(checkFPS);
+    };
+    requestAnimationFrame(checkFPS);
+
+    // D. Block Copying
+    document.addEventListener('copy', e => e.preventDefault());
 }
 
 // Helper: Extract Embed URL for YouTube and Google Drive
