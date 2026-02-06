@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منصة الطلاب - دروس مدرسة</title>
+    <title>منصة الطلاب - احمد </title>
     <link rel="stylesheet" href="style.css">
     <style>
         #playerSection {
@@ -86,7 +86,10 @@
         function promptAccess(lesson) {
             const code = prompt("يرجى إدخال كود الحصة المكون من 15 حرفاً:");
             if (code === lesson.code) {
-                openPlayer(lesson, code);
+                // Show safety check BEFORE opening
+                Security.showSafetyCheck(() => {
+                    openPlayer(lesson, code);
+                });
             } else if (code !== null) {
                 alert("الكود غير صحيح! يرجى التأكد من الكود الذي أعطاه لك المعلم.");
             }
@@ -114,11 +117,12 @@
             Security.startWatermark(code);
         }
 
-        function closePlayer() {
+        // Expose closePlayer globally so security.js can call it
+        window.closePlayer = function () {
             document.getElementById('playerSection').style.display = 'none';
             document.getElementById('videoPlayer').src = '';
-            if (Security.watermarkInterval) clearInterval(Security.watermarkInterval);
-        }
+            Security.stopWatermark();
+        };
 
         renderStudentLessons();
     </script>

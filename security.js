@@ -38,8 +38,14 @@ const Security = {
         const toggleShield = (show) => {
             const wrapper = document.querySelector('.video-wrapper');
             if (!wrapper) return;
-            if (show) wrapper.classList.add('security-blur');
-            else wrapper.classList.remove('security-blur');
+            if (show) {
+                wrapper.classList.add('security-blur');
+                // If it's a critical violation (multiple blurs or long blur during playback)
+                // we close the player to force "cleaning" the screen icons
+                if (window.closePlayer) window.closePlayer();
+            } else {
+                wrapper.classList.remove('security-blur');
+            }
         };
 
         window.addEventListener('blur', () => toggleShield(true));
@@ -47,6 +53,37 @@ const Security = {
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) toggleShield(true);
         });
+
+        // Detection for Browser-native Screen Capture
+        if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
+            const originalGetDisplayMedia = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
+            navigator.mediaDevices.getDisplayMedia = async (options) => {
+                this.triggerAlert("محاولة تسجيل الشاشة محظورة!");
+                if (window.closePlayer) window.closePlayer();
+                throw new Error("Screen capture blocked by security policy.");
+            };
+        }
+    },
+
+    // 5. Safety Check Overlay
+    showSafetyCheck(onProceed) {
+        const backdrop = document.createElement('div');
+        backdrop.className = 'safety-modal-backdrop';
+        backdrop.innerHTML = `
+            <div class="safety-content">
+                <div class="safety-icon">⚠️</div>
+                <h3>تنبيه أمني هام</h3>
+                <p>للتمكن من مشاهدة الدرس، يرجى التأكد من إغلاق كافة تطبيقات "تسجيل الشاشة" أو "الأيقونات العائمة" (مثل DU Recorder أو Mobizen). </p>
+                <p style="font-size: 0.8rem; color: #ffbcbc;">إذا تم الكشف عن أي تلاعب أو ظهور أيقونة تسجيل، سيتم إغلاق الفيديو تلقائياً.</p>
+                <button id="safetyProceedBtn">لقد أغلقت تطبيقات التسجيل - ابدأ</button>
+            </div>
+        `;
+        document.body.appendChild(backdrop);
+
+        document.getElementById('safetyProceedBtn').onclick = () => {
+            backdrop.remove();
+            if (onProceed) onProceed();
+        };
     },
 
     // 3. Environment Monitoring
