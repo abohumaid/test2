@@ -16,10 +16,7 @@
             user-select: none;
             -webkit-user-select: none;
             overflow: hidden;
-        }
-
-        * {
-            -webkit-touch-callout: none;
+            font-family: system-ui, -apple-system, sans-serif;
         }
 
         .player-wrapper {
@@ -35,6 +32,7 @@
         .video-container {
             position: relative;
             padding-bottom: 56.25%;
+            /* 16:9 Aspect Ratio */
             height: 0;
             overflow: hidden;
             border-radius: 4px;
@@ -62,14 +60,13 @@
         .back-btn {
             text-decoration: none;
             color: #ccc;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-weight: 500;
             cursor: pointer;
             border: none;
             background: transparent;
             font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .back-btn:hover {
@@ -83,10 +80,6 @@
             background: rgba(127, 29, 29, 0.3);
             border-radius: 8px;
             margin: 2rem;
-            font-size: 0.9rem;
-            line-height: 1.6;
-            direction: ltr;
-            /* Force LTR for error logs */
         }
 
         #timerDisplay {
@@ -96,17 +89,29 @@
             font-size: 0.8rem;
         }
 
-        .security-badge {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(239, 68, 68, 0.6);
-            color: white;
-            padding: 4px 10px;
-            border-radius: 4px;
-            font-size: 0.7rem;
-            pointer-events: none;
-            z-index: 10;
+        .loading-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #888;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left-color: #4f46e5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
         }
     </style>
 </head>
@@ -116,19 +121,19 @@
         <div class="logo" style="font-weight: bold; font-size: 1.2rem; color: #4f46e5;">أكاديمية المعلم - حماية
             VdoCipher</div>
         <button onclick="safeBack()" class="back-btn">
-            عودة للرئيسية →
+            عودة للرئيسية ↩
         </button>
     </nav>
 
     <div class="container" style="display: flex; flex: 1;">
         <div class="player-wrapper">
-            <h2 id="videoTitle" style="margin-bottom: 10px; font-size: 1.1rem; text-align: right;">جاري التحقق...</h2>
+            <h2 id="videoTitle" style="margin-bottom: 10px; font-size: 1.1rem; text-align: right;">جاري تهيئة الاتصال
+                الآمن...</h2>
 
             <div id="playerContainer" class="video-container">
-                <div class="security-badge">نظام حماية نشط 🔒</div>
-                <div id="loadingStatus"
-                    style="display: flex; align-items: center; justify-content: center; height: 100%; color: #555;">
-                    جاري محاولة الاتصال (المحاولة 1/3)...
+                <div class="loading-screen">
+                    <div class="spinner"></div>
+                    <div>جاري تشغيل الفيديو بأمان...</div>
                 </div>
             </div>
 
@@ -136,10 +141,11 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
     <script>
-        const API_SECRET = 'WksktlTuYM5SWc0Q1vhHpdH8Vuw480RCNisSrAinQx4VyL5wCEsKuae19U5g2r3m';
+        // Middleware URL from Google Apps Script
+        const MIDDLEWARE_URL = 'https://script.google.com/macros/s/AKfycbzCuKX1dYf5afs4ABL5Zwyd93IaoTU4STk5hSonf2H2/exec';
 
+        // Block Right Click and specific hotkeys
         document.addEventListener('keydown', e => {
             if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'C' || e.key === 'J')) || (e.ctrlKey && e.key === 'u') || e.key === 'PrintScreen') {
                 e.preventDefault();
@@ -148,7 +154,7 @@
         });
 
         async function safeBack() {
-            try { if (document.fullscreenElement) await document.exitFullscreen(); } catch (err) { }
+            try { if (document.fullscreenElement) await document.exitFullscreen(); } catch (e) { }
             window.location.href = 'index.html';
         }
 
@@ -158,97 +164,52 @@
             const activeCode = sessionStorage.getItem('activeCode') || 'USER';
 
             if (!videoId || !expiry) {
-                showError('بيانات الفيديو مفقودة. يرجى إعادة الدخول.');
+                showError('معلومات الفيديو مفقودة. يرجى العودة للرئيسية وإعادة المحاولة.');
                 return;
             }
 
             startCountdown(parseInt(expiry));
-            document.getElementById('videoTitle').innerText = 'مشاهدة آمنة للدرس';
 
             try {
-                const otpData = await fetchOTPWithFallback(videoId, activeCode);
+                const otpData = await fetchOTP(videoId, activeCode);
                 if (otpData && otpData.otp && otpData.playbackInfo) {
                     embedPlayer(otpData);
                 } else {
-                    showError('فشل استخراج بيانات الفيديو من السيرفر.', JSON.stringify(otpData));
+                    showError('لا يمكن استرجاع بيانات الفيديو. يرجى التأكد من الكود المفعول.');
                 }
             } catch (err) {
-                showError('FAILED_ALL_ATTEMPTS', err.message + " | " + navigator.userAgent);
+                showError('حدث حطأ في الاتصال بالسيرفر. يرجى المحاولة لاحقاً أو التأكد من جودة الإنترنت.');
                 console.error(err);
             }
         };
 
-        async function fetchOTPWithFallback(videoId, code) {
-            const targetUrl = `https://dev.vdocipher.com/api/videos/${videoId}/otp`;
-            const annotations = JSON.stringify([{
-                type: 'rtext', text: `Code: ${code}`, alpha: '0.4', color: 'FFFFFF', size: '18', interval: '5000'
-            }]);
-
-            const payload = {
+        async function fetchOTP(videoId, code) {
+            // No more complex proxies or client-side secrets!
+            // We call the Google Apps Script middleware which handles everything on the server.
+            const response = await fetch(MIDDLEWARE_URL, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Apisecret ${API_SECRET}`
-                },
-                body: JSON.stringify({ ttl: 300, annotations: annotations })
-            };
+                body: JSON.stringify({ videoId: videoId, code: code })
+            });
 
-            // Strategy: Try multiple proxies sequentially
-            const proxies = [
-                `https://corsproxy.io/?` + encodeURIComponent(targetUrl),
-                `https://thingproxy.freeboard.io/fetch/` + targetUrl,
-                // Direct call (Last resort, likely fails CORS but useful test)
-                targetUrl
-            ];
+            if (!response.ok) throw new Error('Middleware failed');
 
-            let lastError = null;
-
-            for (let i = 0; i < proxies.length; i++) {
-                const url = proxies[i];
-                updateLoadingStatus(`محاولة الاتصال ${i + 1}/${proxies.length}...`);
-
-                try {
-                    console.log(`Trying Proxy ${i}: ${url}`);
-                    const response = await fetch(url, payload);
-
-                    if (!response.ok) {
-                        const txt = await response.text();
-                        throw new Error(`HTTP ${response.status}: ${txt.substring(0, 50)}`);
-                    }
-
-                    return await response.json();
-                } catch (e) {
-                    console.warn(`Attempt ${i} failed:`, e);
-                    lastError = e;
-                }
-            }
-
-            throw lastError;
-        }
-
-        function updateLoadingStatus(msg) {
-            const el = document.getElementById('loadingStatus');
-            if (el) el.innerText = msg;
+            return await response.json();
         }
 
         function embedPlayer(data) {
             const container = document.getElementById('playerContainer');
+            // Constructor with extra security parameters
             const iframeSrc = `https://player.vdocipher.com/v2/?otp=${data.otp}&playbackInfo=${data.playbackInfo}&disablepictureinpicture=1`;
-            container.innerHTML = `<iframe src="${iframeSrc}" allow="encrypted-media" allowfullscreen style="border:0; width:100%; height:100%;"></iframe>`;
+
+            container.innerHTML = `
+                <iframe src="${iframeSrc}" allow="encrypted-media" allowfullscreen style="border:0; width:100%; height:100%;"></iframe>
+            `;
+            document.getElementById('videoTitle').innerText = 'مشاهدة آمنة للدرس';
         }
 
-        function showError(title, details) {
+        function showError(msg) {
             document.getElementById('playerContainer').innerHTML = `
-                <div class="error-message">
-                    <h3>${title}</h3>
-                    <p style="font-family: monospace; background: rgba(0,0,0,0.3); padding: 10px; margin-top: 10px; overflow-wrap: break-word;">
-                        ${details}
-                    </p>
-                    <button onclick="window.location.reload()">Refesh / إعادة المحاولة</button>
-                    <p style="font-size:0.7rem; color:#aaa; margin-top:20px;">
-                        Note: On mobile, ensure no AdBlock is preventing 'corsproxy' connections.
-                    </p>
-                </div>
+                <div class="error-message">${msg}</div>
             `;
         }
 
@@ -257,13 +218,13 @@
             function update() {
                 const distance = expiryTime - new Date().getTime();
                 if (distance < 0) {
-                    timerEl.innerHTML = "انتهت";
+                    timerEl.innerHTML = "انتهت الصلاحية";
                     window.location.href = 'index.html';
                     return;
                 }
-                const hrs = Math.floor((distance / (1000 * 60 * 60)));
+                const hrs = Math.floor(distance / (1000 * 60 * 60));
                 const mins = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-                timerEl.innerHTML = `متبقي: ${hrs} س ${mins} د`;
+                timerEl.innerHTML = `متبقي لك: ${hrs} ساعة و ${mins} دقيقة للمشاهدة`;
             }
             setInterval(update, 60000);
             update();
