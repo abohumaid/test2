@@ -9,18 +9,15 @@
     <style>
         body {
             background-color: #000;
-            /* Dark background for better focus */
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             color: white;
             user-select: none;
-            /* Block selection */
             -webkit-user-select: none;
             overflow: hidden;
         }
 
-        /* Prevent standard Right-Click behavior */
         * {
             -webkit-touch-callout: none;
         }
@@ -38,7 +35,6 @@
         .video-container {
             position: relative;
             padding-bottom: 56.25%;
-            /* 16:9 Aspect Ratio */
             height: 0;
             overflow: hidden;
             border-radius: 4px;
@@ -87,6 +83,8 @@
             background: rgba(239, 68, 68, 0.1);
             border-radius: 8px;
             margin: 2rem;
+            font-size: 0.9rem;
+            line-height: 1.6;
         }
 
         #timerDisplay {
@@ -96,7 +94,6 @@
             font-size: 0.8rem;
         }
 
-        /* High security layer overlay (optional visual deterrent) */
         .security-badge {
             position: absolute;
             top: 10px;
@@ -109,10 +106,23 @@
             pointer-events: none;
             z-index: 10;
         }
+
+        code {
+            display: block;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            margin-top: 10px;
+            color: #fca5a5;
+            font-family: monospace;
+            word-break: break-all;
+            white-space: pre-wrap;
+            text-align: left;
+            direction: ltr;
+        }
     </style>
 </head>
 
-<body oncontextmenu="return false;"> <!-- Block Right Click -->
+<body oncontextmenu="return false;">
     <nav class="header-nav">
         <div class="logo" style="font-weight: bold; font-size: 1.2rem; color: #4f46e5;">أكاديمية المعلم - حماية
             VdoCipher</div>
@@ -123,13 +133,12 @@
 
     <div class="container" style="display: flex; flex: 1;">
         <div class="player-wrapper">
-            <h2 id="videoTitle" style="margin-bottom: 10px; font-size: 1.1rem; text-align: right;">جاري التحقق من
-                الصلاحية...</h2>
+            <h2 id="videoTitle" style="margin-bottom: 10px; font-size: 1.1rem; text-align: right;">جاري التحقق...</h2>
 
             <div id="playerContainer" class="video-container">
                 <div class="security-badge">نظام حماية نشط 🔒</div>
-                <!-- VdoCipher Player -->
-                <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #555;">
+                <div id="loadingStatus"
+                    style="display: flex; align-items: center; justify-content: center; height: 100%; color: #555;">
                     جاري الاتصال بالسيرفر الآمن...
                 </div>
             </div>
@@ -142,28 +151,15 @@
     <script>
         const API_SECRET = 'WksktlTuYM5SWc0Q1vhHpdH8Vuw480RCNisSrAinQx4VyL5wCEsKuae19U5g2r3m';
 
-        // 1. Block Keyboard Shortcuts
         document.addEventListener('keydown', e => {
-            if (
-                e.key === 'F12' ||
-                (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'C' || e.key === 'J')) ||
-                (e.ctrlKey && e.key === 'u') ||
-                e.key === 'PrintScreen'
-            ) {
+            if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'C' || e.key === 'J')) || (e.ctrlKey && e.key === 'u') || e.key === 'PrintScreen') {
                 e.preventDefault();
                 return false;
             }
         });
 
-        // 2. Safe Back Navigation (Fix for exitFullscreen error)
         async function safeBack() {
-            try {
-                if (document.fullscreenElement) {
-                    await document.exitFullscreen();
-                }
-            } catch (err) {
-                console.log("Fullscreen exit ignored or already exited.");
-            }
+            try { if (document.fullscreenElement) await document.exitFullscreen(); } catch (err) { }
             window.location.href = 'index.html';
         }
 
@@ -173,7 +169,7 @@
             const activeCode = sessionStorage.getItem('activeCode') || 'USER';
 
             if (!videoId || !expiry) {
-                showError('لا يمكن الوصول للفيديو. يرجى العودة للرئيسية.');
+                showError('لا يمكن الوصول للفيديو. يرجى العودة للرئيسية وتغيير الكود.');
                 return;
             }
 
@@ -185,27 +181,27 @@
                 if (otpData && otpData.otp && otpData.playbackInfo) {
                     embedPlayer(otpData);
                 } else {
-                    showError('خطأ: لم يتم التعرف على معرف الفيديو. عذراً.');
+                    showError('خطأ: لم يتم التعرف على معرف الفيديو أو انتهت صلاحيته.', JSON.stringify(otpData));
                 }
             } catch (err) {
-                showError('حدث خطأ أثناء الاتصال بالسيرفر. التفاصيل: ' + err.message);
+                showError('حدث خطأ أثناء الاتصال بالسيرفر.', err.message);
                 console.error(err);
             }
         };
 
         async function fetchOTP(videoId, code) {
             const targetUrl = `https://dev.vdocipher.com/api/videos/${videoId}/otp`;
+            // نحاول استخدام corsproxy.io
             const proxyUrl = `https://corsproxy.io/?` + encodeURIComponent(targetUrl);
 
-            // Dynamic Watermarking Configuration
             const annotations = [
                 {
-                    type: 'rtext', // Randomly moving text
+                    type: 'rtext',
                     text: `Code: ${code}`,
-                    alpha: '0.5',
-                    color: '0xFFFFFF',
+                    alpha: '0.4',
+                    color: 'FFFFFF',
                     size: '18',
-                    interval: '5000' // Move every 5 seconds
+                    interval: '5000'
                 }
             ];
 
@@ -221,29 +217,32 @@
                 })
             });
 
-            if (!response.ok) throw new Error('API failed');
+            if (!response.ok) {
+                const errorDetail = await response.text();
+                throw new Error(`API Response Error (${response.status}): ${errorDetail}`);
+            }
 
             return await response.json();
         }
 
         function embedPlayer(data) {
             const container = document.getElementById('playerContainer');
-            // Constructor with extra security parameters
             const iframeSrc = `https://player.vdocipher.com/v2/?otp=${data.otp}&playbackInfo=${data.playbackInfo}&disablepictureinpicture=1`;
 
             container.innerHTML = `
-                <iframe 
-                    src="${iframeSrc}" 
-                    allow="encrypted-media" 
-                    allowfullscreen
-                    style="border:0; width:100%; height:100%;"
-                ></iframe>
+                <iframe src="${iframeSrc}" allow="encrypted-media" allowfullscreen style="border:0; width:100%; height:100%;"></iframe>
             `;
         }
 
-        function showError(msg) {
+        function showError(msg, details = "") {
             document.getElementById('playerContainer').innerHTML = `
-                <div class="error-message">${msg}</div>
+                <div class="error-message">
+                    <strong>${msg}</strong>
+                    ${details ? `<code>${details}</code>` : ''}
+                    <br><br>
+                    <button onclick="window.location.reload()" style="background:#555; color:white; border:none; padding:5px 15px; border-radius:4px; cursor:pointer;">إعادة المحاولة</button>
+                    <a href="index.html" style="color:#aaa; display:block; margin-top:10px; font-size:0.8rem;">العودة للقائمة</a>
+                </div>
             `;
         }
 
@@ -256,7 +255,7 @@
                     window.location.href = 'index.html';
                     return;
                 }
-                const hrs = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const hrs = Math.floor((distance / (1000 * 60 * 60)));
                 const mins = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
                 timerEl.innerHTML = `متبقي لك: ${hrs} ساعة و ${mins} دقيقة للمشاهدة`;
             }
