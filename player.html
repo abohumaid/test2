@@ -77,14 +77,16 @@
         }
 
         .error-message {
-            color: #ef4444;
+            color: #f87171;
             text-align: center;
             padding: 2rem;
-            background: rgba(239, 68, 68, 0.1);
+            background: rgba(127, 29, 29, 0.3);
             border-radius: 8px;
             margin: 2rem;
             font-size: 0.9rem;
             line-height: 1.6;
+            direction: ltr;
+            /* Force LTR for error logs */
         }
 
         #timerDisplay {
@@ -106,19 +108,6 @@
             pointer-events: none;
             z-index: 10;
         }
-
-        code {
-            display: block;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 10px;
-            margin-top: 10px;
-            color: #fca5a5;
-            font-family: monospace;
-            word-break: break-all;
-            white-space: pre-wrap;
-            text-align: left;
-            direction: ltr;
-        }
     </style>
 </head>
 
@@ -139,7 +128,7 @@
                 <div class="security-badge">نظام حماية نشط 🔒</div>
                 <div id="loadingStatus"
                     style="display: flex; align-items: center; justify-content: center; height: 100%; color: #555;">
-                    جاري الاتصال بالسيرفر الآمن...
+                    جاري محاولة الاتصال (المحاولة 1/3)...
                 </div>
             </div>
 
@@ -169,7 +158,7 @@
             const activeCode = sessionStorage.getItem('activeCode') || 'USER';
 
             if (!videoId || !expiry) {
-                showError('لا يمكن الوصول للفيديو. يرجى العودة للرئيسية وتغيير الكود.');
+                showError('بيانات الفيديو مفقودة. يرجى إعادة الدخول.');
                 return;
             }
 
@@ -177,71 +166,88 @@
             document.getElementById('videoTitle').innerText = 'مشاهدة آمنة للدرس';
 
             try {
-                const otpData = await fetchOTP(videoId, activeCode);
+                const otpData = await fetchOTPWithFallback(videoId, activeCode);
                 if (otpData && otpData.otp && otpData.playbackInfo) {
                     embedPlayer(otpData);
                 } else {
-                    showError('خطأ: لم يتم التعرف على معرف الفيديو أو انتهت صلاحيته.', JSON.stringify(otpData));
+                    showError('فشل استخراج بيانات الفيديو من السيرفر.', JSON.stringify(otpData));
                 }
             } catch (err) {
-                showError('حدث خطأ أثناء الاتصال بالسيرفر.', err.message);
+                showError('FAILED_ALL_ATTEMPTS', err.message + " | " + navigator.userAgent);
                 console.error(err);
             }
         };
 
-        async function fetchOTP(videoId, code) {
+        async function fetchOTPWithFallback(videoId, code) {
             const targetUrl = `https://dev.vdocipher.com/api/videos/${videoId}/otp`;
-            // نحاول استخدام corsproxy.io
-            const proxyUrl = `https://corsproxy.io/?` + encodeURIComponent(targetUrl);
+            const annotations = JSON.stringify([{
+                type: 'rtext', text: `Code: ${code}`, alpha: '0.4', color: 'FFFFFF', size: '18', interval: '5000'
+            }]);
 
-            const annotations = [
-                {
-                    type: 'rtext',
-                    text: `Code: ${code}`,
-                    alpha: '0.4',
-                    color: 'FFFFFF',
-                    size: '18',
-                    interval: '5000'
-                }
-            ];
-
-            const response = await fetch(proxyUrl, {
+            const payload = {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Apisecret ${API_SECRET}`
                 },
-                body: JSON.stringify({
-                    ttl: 300,
-                    annotations: JSON.stringify(annotations)
-                })
-            });
+                body: JSON.stringify({ ttl: 300, annotations: annotations })
+            };
 
-            if (!response.ok) {
-                const errorDetail = await response.text();
-                throw new Error(`API Response Error (${response.status}): ${errorDetail}`);
+            // Strategy: Try multiple proxies sequentially
+            const proxies = [
+                `https://corsproxy.io/?` + encodeURIComponent(targetUrl),
+                `https://thingproxy.freeboard.io/fetch/` + targetUrl,
+                // Direct call (Last resort, likely fails CORS but useful test)
+                targetUrl
+            ];
+
+            let lastError = null;
+
+            for (let i = 0; i < proxies.length; i++) {
+                const url = proxies[i];
+                updateLoadingStatus(`محاولة الاتصال ${i + 1}/${proxies.length}...`);
+
+                try {
+                    console.log(`Trying Proxy ${i}: ${url}`);
+                    const response = await fetch(url, payload);
+
+                    if (!response.ok) {
+                        const txt = await response.text();
+                        throw new Error(`HTTP ${response.status}: ${txt.substring(0, 50)}`);
+                    }
+
+                    return await response.json();
+                } catch (e) {
+                    console.warn(`Attempt ${i} failed:`, e);
+                    lastError = e;
+                }
             }
 
-            return await response.json();
+            throw lastError;
+        }
+
+        function updateLoadingStatus(msg) {
+            const el = document.getElementById('loadingStatus');
+            if (el) el.innerText = msg;
         }
 
         function embedPlayer(data) {
             const container = document.getElementById('playerContainer');
             const iframeSrc = `https://player.vdocipher.com/v2/?otp=${data.otp}&playbackInfo=${data.playbackInfo}&disablepictureinpicture=1`;
-
-            container.innerHTML = `
-                <iframe src="${iframeSrc}" allow="encrypted-media" allowfullscreen style="border:0; width:100%; height:100%;"></iframe>
-            `;
+            container.innerHTML = `<iframe src="${iframeSrc}" allow="encrypted-media" allowfullscreen style="border:0; width:100%; height:100%;"></iframe>`;
         }
 
-        function showError(msg, details = "") {
+        function showError(title, details) {
             document.getElementById('playerContainer').innerHTML = `
                 <div class="error-message">
-                    <strong>${msg}</strong>
-                    ${details ? `<code>${details}</code>` : ''}
-                    <br><br>
-                    <button onclick="window.location.reload()" style="background:#555; color:white; border:none; padding:5px 15px; border-radius:4px; cursor:pointer;">إعادة المحاولة</button>
-                    <a href="index.html" style="color:#aaa; display:block; margin-top:10px; font-size:0.8rem;">العودة للقائمة</a>
+                    <h3>${title}</h3>
+                    <p style="font-family: monospace; background: rgba(0,0,0,0.3); padding: 10px; margin-top: 10px; overflow-wrap: break-word;">
+                        ${details}
+                    </p>
+                    <button onclick="window.location.reload()">Refesh / إعادة المحاولة</button>
+                    <p style="font-size:0.7rem; color:#aaa; margin-top:20px;">
+                        Note: On mobile, ensure no AdBlock is preventing 'corsproxy' connections.
+                    </p>
                 </div>
             `;
         }
@@ -251,13 +257,13 @@
             function update() {
                 const distance = expiryTime - new Date().getTime();
                 if (distance < 0) {
-                    timerEl.innerHTML = "انتهت الصلاحية";
+                    timerEl.innerHTML = "انتهت";
                     window.location.href = 'index.html';
                     return;
                 }
                 const hrs = Math.floor((distance / (1000 * 60 * 60)));
                 const mins = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-                timerEl.innerHTML = `متبقي لك: ${hrs} ساعة و ${mins} دقيقة للمشاهدة`;
+                timerEl.innerHTML = `متبقي: ${hrs} س ${mins} د`;
             }
             setInterval(update, 60000);
             update();
